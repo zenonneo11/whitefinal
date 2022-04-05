@@ -1,4 +1,4 @@
-// –еализуйте функции и методы классов и при необходимости добавьте свои
+
 #include<string>
 #include<iostream>
 #include<sstream>
@@ -43,17 +43,28 @@ public:
     void AddEvent(const Date& date, const string& event) {
         date_to_events[date].insert(event);
     }
-    bool DeleteEvent(const Date& date, const string& event);
-    int  DeleteDate(const Date& date);
+    bool DeleteEvent(const Date& date, const string& event){
+        if (date_to_events.count(date)==0){return 0;}
+        return date_to_events[date].erase(event);
+    }
+
+    int  DeleteDate(const Date& date){
+        if (date_to_events.count(date)==0){return 0;}
+        int events_deleted=date_to_events[date].size();
+        date_to_events.erase(date);
+        return events_deleted;
+    }
 
     //   /* ??? */ Find(const Date& date) const;
 
     void Print() const {
+        std::cout<<"size of map: "<<date_to_events.size()<<std::endl;
         for (const auto& [date, events_set] : date_to_events) {
+            ;
             for (const auto& event : events_set) {
-                std::cout << date << ' ' << event << std::endl;
+                 std::cout << date << ' '<< event << std::endl;
             }
-
+            
         }
     };
 
@@ -61,12 +72,14 @@ private:
     std::map<Date, std::set<std::string>> date_to_events;
 };
 
+
+
 int main() {
     Database db;
 
     string command;
     while (getline(cin, command)) {
-        // —читайте команды с потока ввода и обработайте каждую
+       
         if (command.empty()) { continue; }
         stringstream ss(command);
         string operation;
@@ -76,10 +89,28 @@ int main() {
             string event;
             ss >> date >> event;
             db.AddEvent(date, event);
-
+        }else if (operation == "Del"){
+            Date date;
+            string event;
+            ss >> date >> event;
+            if (event.empty()){
+                //del all day events
+                std::cout<<"Deleted "<<db.DeleteDate(date)<<" events"<<endl;
+            }else{
+                //del event on day
+               if(db.DeleteEvent(date,event)){
+                  std::cout<<"Deleted successfully"<<endl; 
+               } else{
+                   std::cout<<"Event not found"<<endl;
+               }
+            }
+        }else if (operation == "Find"){
+            
+        }else if (operation == "Print"){
+            db.Print();   
         }
 
     }
-    db.Print();
+    
     return 0;
 }
