@@ -20,12 +20,26 @@ public:
 };
 
 istream& operator>>(istream& is, Date& date) {
-    is >> date.year;
-    is.ignore(1);
-    is >> date.month;
-    is.ignore(1);
-    is >> date.day;
+    char c;
+    std::string datesring;
+    is>>datesring;
+    stringstream ss(datesring);
+    ss >> date.year;
+    if (ss.fail()){throw invalid_argument("Wrong date format: "+datesring);}
+    ss>>c;
+    if (c!='-'){throw invalid_argument("Wrong date format: "+datesring);}
+    ss >> date.month;
+    if (ss.fail()){throw invalid_argument("Wrong date format: "+datesring);}
+     if (date.month<1||date.month>12){throw domain_error("Month value is invalid: "+to_string(date.month)); }
+    ss>>c;
+    if (c!='-'){throw invalid_argument("Wrong date format: "+datesring);}
+    ss >> date.day;
+    if (ss.fail()){throw invalid_argument("Wrong date format: "+datesring);}
+    if (date.day<1||date.day>31){throw domain_error("Day value is invalid: "+to_string(date.day)); }
+    if (!ss.eof()){throw invalid_argument("Wrong date format: "+datesring);}
     return is;
+        
+
 }
 
 ostream& operator<<(ostream& os, const Date& date) {
@@ -54,13 +68,17 @@ public:
         date_to_events.erase(date);
         return events_deleted;
     }
-
-    //   /* ??? */ Find(const Date& date) const;
+    void Find(const Date& date) const{
+    if (date_to_events.count(date)==0){return;}
+    for (const auto& event : date_to_events.at(date)) {
+                 std::cout << event << std::endl;
+            }    
+        
+    }
 
     void Print() const {
-        std::cout<<"size of map: "<<date_to_events.size()<<std::endl;
+ 
         for (const auto& [date, events_set] : date_to_events) {
-            ;
             for (const auto& event : events_set) {
                  std::cout << date << ' '<< event << std::endl;
             }
@@ -75,6 +93,7 @@ private:
 
 
 int main() {
+    try {
     Database db;
 
     string command;
@@ -105,11 +124,21 @@ int main() {
                }
             }
         }else if (operation == "Find"){
+            Date date;
+            ss>>date;
+            db.Find(date);
             
         }else if (operation == "Print"){
             db.Print();   
-        }
+        }else{std::cout<<"Unknown command: "<<operation;}
 
+    }
+    }catch(invalid_argument&ex){
+        std::cout<<ex.what();
+    }catch(domain_error&ex){
+        std::cout<<ex.what();
+    }catch(exception&ex){
+        
     }
     
     return 0;
