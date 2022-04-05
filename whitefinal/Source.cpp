@@ -1,145 +1,189 @@
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
-#include<string>
-#include<iostream>
-#include<sstream>
-#include<map>
-#include<set>
-#include<iomanip>
 using namespace std;
 
 class Date {
 public:
+  // конструктор выбрасывает исключение, если его аргументы некорректны
+  Date(int new_year, int new_month, int new_day) {
+    year = new_year;
+    if (new_month > 12 || new_month < 1) {
+      throw logic_error("Month value is invalid: " + to_string(new_month));
+    }
+    month = new_month;
+    if (new_day > 31 || new_day < 1) {
+      throw logic_error("Day value is invalid: " + to_string(new_day));
+    }
+    day = new_day;
+  }
 
-    int GetYear() const { return year; }
-    int GetMonth() const { return month; }
-    int GetDay() const { return day; }
+  int GetYear() const {
+    return year;
+  }
+  int GetMonth() const {
+    return month;
+  }
+  int GetDay() const {
+    return day;
+  }
 
-    int year;
-    int month;
-    int day;
+private:
+  int year;
+  int month;
+  int day;
 };
 
-istream& operator>>(istream& is, Date& date) {
-    char c;
-    std::string datesring;
-    is>>datesring;
-    stringstream ss(datesring);
-    ss >> date.year;
-    if (ss.fail()){throw invalid_argument("Wrong date format: "+datesring);}
-    ss>>c;
-    if (c!='-'){throw invalid_argument("Wrong date format: "+datesring);}
-    ss >> date.month;
-    if (ss.fail()){throw invalid_argument("Wrong date format: "+datesring);}
-     if (date.month<1||date.month>12){throw domain_error("Month value is invalid: "+to_string(date.month)); }
-    ss>>c;
-    if (c!='-'){throw invalid_argument("Wrong date format: "+datesring);}
-    ss >> date.day;
-    if (ss.fail()){throw invalid_argument("Wrong date format: "+datesring);}
-    if (date.day<1||date.day>31){throw domain_error("Day value is invalid: "+to_string(date.day)); }
-    if (!ss.eof()){throw invalid_argument("Wrong date format: "+datesring);}
-    return is;
-        
-
-}
-
-ostream& operator<<(ostream& os, const Date& date) {
-    os << setfill('0') << setw(4) << date.GetYear() << '-' << setw(2) << date.GetMonth() << '-' << setw(2) << date.GetDay();
-    return os;
-}
-
-
+// определить сравнение для дат необходимо для использования их в качестве ключей словаря
 bool operator<(const Date& lhs, const Date& rhs) {
-    return lhs.GetYear() * 365 + lhs.GetMonth() * 31 + lhs.GetDay() < rhs.GetYear() * 365 + rhs.GetMonth() * 31 + rhs.GetDay();
+  // воспользуемся тем фактом, что векторы уже можно сравнивать на <:
+  // создадим вектор из года, месяца и дня для каждой даты и сравним их
+  return vector<int>{lhs.GetYear(), lhs.GetMonth(), lhs.GetDay()} <
+      vector<int>{rhs.GetYear(), rhs.GetMonth(), rhs.GetDay()};
+}
+
+// даты будут по умолчанию выводиться в нужном формате
+ostream& operator<<(ostream& stream, const Date& date) {
+  stream << setw(4) << setfill('0') << date.GetYear() <<
+      "-" << setw(2) << setfill('0') << date.GetMonth() <<
+      "-" << setw(2) << setfill('0') << date.GetDay();
+  return stream;
 }
 
 class Database {
 public:
-    void AddEvent(const Date& date, const string& event) {
-        date_to_events[date].insert(event);
-    }
-    bool DeleteEvent(const Date& date, const string& event){
-        if (date_to_events.count(date)==0){return 0;}
-        return date_to_events[date].erase(event);
-    }
+  void AddEvent(const Date& date, const string& event) {
+    storage[date].insert(event);
+  }
 
-    int  DeleteDate(const Date& date){
-        if (date_to_events.count(date)==0){return 0;}
-        int events_deleted=date_to_events[date].size();
-        date_to_events.erase(date);
-        return events_deleted;
+  bool DeleteEvent(const Date& date, const string& event) {
+    if (storage.count(date) > 0 && storage[date].count(event) > 0) {
+      storage[date].erase(event);
+      return true;
     }
-    void Find(const Date& date) const{
-    if (date_to_events.count(date)==0){return;}
-    for (const auto& event : date_to_events.at(date)) {
-                 std::cout << event << std::endl;
-            }    
-        
-    }
+    return false;
+  }
 
-    void Print() const {
- 
-        for (const auto& [date, events_set] : date_to_events) {
-            for (const auto& event : events_set) {
-                 std::cout << date << ' '<< event << std::endl;
-            }
-            
-        }
-    };
+  int DeleteDate(const Date& date) {
+    if (storage.count(date) == 0) {
+      return 0;
+    } else {
+      const int event_count = storage[date].size();
+      storage.erase(date);
+      return event_count;
+    }
+  }
+
+  set<string> Find(const Date& date) const {
+    if (storage.count(date) > 0) {
+      return storage.at(date);
+    } else {
+      return {};
+    }
+  }
+
+  void Print() const {
+    for (const auto& item : storage) {
+      for (const string& event : item.second) {
+        cout << item.first << " " << event << endl;
+      }
+    }
+  }
 
 private:
-    std::map<Date, std::set<std::string>> date_to_events;
+  map<Date, set<string>> storage;
 };
 
+Date ParseDate(const string& date) {
+  istringstream date_stream(date);
+  bool ok = true;
 
+  int year;
+  ok = ok && (date_stream >> year);
+  ok = ok && (date_stream.peek() == '-');
+  date_stream.ignore(1);
+
+  int month;
+  ok = ok && (date_stream >> month);
+  ok = ok && (date_stream.peek() == '-');
+  date_stream.ignore(1);
+
+  int day;
+  ok = ok && (date_stream >> day);
+  ok = ok && date_stream.eof();
+
+  if (!ok) {
+    throw logic_error("Wrong date format: " + date);
+  }
+  return Date(year, month, day);
+}
 
 int main() {
-    try {
+  try {
     Database db;
 
-    string command;
-    while (getline(cin, command)) {
-       
-        if (command.empty()) { continue; }
-        stringstream ss(command);
-        string operation;
-        ss >> operation;
-        if (operation == "Add") {
-            Date date;
-            string event;
-            ss >> date >> event;
-            db.AddEvent(date, event);
-        }else if (operation == "Del"){
-            Date date;
-            string event;
-            ss >> date >> event;
-            if (event.empty()){
-                //del all day events
-                std::cout<<"Deleted "<<db.DeleteDate(date)<<" events"<<endl;
-            }else{
-                //del event on day
-               if(db.DeleteEvent(date,event)){
-                  std::cout<<"Deleted successfully"<<endl; 
-               } else{
-                   std::cout<<"Event not found"<<endl;
-               }
-            }
-        }else if (operation == "Find"){
-            Date date;
-            ss>>date;
-            db.Find(date);
-            
-        }else if (operation == "Print"){
-            db.Print();   
-        }else{std::cout<<"Unknown command: "<<operation;}
+    string command_line;
+    while (getline(cin, command_line)) {
+      stringstream ss(command_line);
 
+      string command;
+      ss >> command;
+
+      if (command == "Add") {
+
+        string date_str, event;
+        ss >> date_str >> event;
+        const Date date = ParseDate(date_str);
+        db.AddEvent(date, event);
+
+      } else if (command == "Del") {
+
+        string date_str;
+        ss >> date_str;
+        string event;
+        if (!ss.eof()) {
+          ss >> event;
+        }
+        const Date date = ParseDate(date_str);
+        if (event.empty()) {
+          const int count = db.DeleteDate(date);
+          cout << "Deleted " << count << " events" << endl;
+        } else {
+          if (db.DeleteEvent(date, event)) {
+            cout << "Deleted successfully" << endl;
+          } else {
+            cout << "Event not found" << endl;
+          }
+        }
+
+      } else if (command == "Find") {
+
+        string date_str;
+        ss >> date_str;
+        const Date date = ParseDate(date_str);
+        for (const string& event : db.Find(date)) {
+          cout << event << endl;
+        }
+
+      } else if (command == "Print") {
+
+        db.Print();
+
+      } else if (!command.empty()) {
+
+        throw logic_error("Unknown command: " + command);
+
+      }
     }
-    }catch(invalid_argument&ex){
-        std::cout<<ex.what();
-    }catch(domain_error&ex){
-        std::cout<<ex.what();
-    }catch(exception&ex){
-        
-    }
-    
-    return 0;
+  } catch (const exception& e) {
+    cout << e.what() << endl;
+  }
+
+  return 0;
 }
